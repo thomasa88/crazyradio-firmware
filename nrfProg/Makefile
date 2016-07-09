@@ -1,11 +1,11 @@
-
-LDFLAGS=$(shell pkg-config --libs libftdi1)
-CFLAGS=$(shell pkg-config --cflags libftdi1)
+CC=arm-unknown-linux-gnueabi-gcc
+LDFLAGS=-Lprefix/lib -lwiringPi
+CFLAGS=-Iprefix/include
 
 all: nrfProg
 
 nrfProg: nrfProg.o nrfSpi.o commands.o
-	cc -o $@ $^ $(LDFLAGS)
+	$(CC) -o $@ $^ $(LDFLAGS)
 
 clean:
 	rm -f *.o nrfProg *~

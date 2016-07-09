@@ -24,6 +24,7 @@
  * nrfProg.c nRF24LU01(P) SPI programmer using a Amontec JTAG Key
  */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,9 +39,10 @@ static char vbuffer[32*1024];
 
 void help(char * port);
 
-void hexdump(int argc, char ** argv);
+void hexdump(int argc, char ** argv, bool infopage);
 void nrfread(int argc, char ** argv);
 void nrfwrite(int argc, char **argv);
+void eraseall();
 
 //Utils
 void holdReset();
@@ -48,6 +50,10 @@ void resetProg();
 void resetRun();
 void activateSPI();
 void deactivateSPI();
+
+extern int cmdRdsr(char *fsr);
+extern int cmdWrsr(char fsr);
+extern int cmdRdfpcr(char *fpcr);
 
 int main (int argc, char *argv[])
 {
@@ -64,15 +70,59 @@ int main (int argc, char *argv[])
   
   //Exeute commands
   if (!strcmp(argv[1], "hexdump"))
-    hexdump(argc-2, argv+2);
+    hexdump(argc-2, argv+2, false);
   if (!strcmp(argv[1], "read"))
     nrfread(argc-2, argv+2);
   if (!strcmp(argv[1], "write"))
     nrfwrite(argc-2, argv+2);
+  if (!strcmp(argv[1], "eraseall"))
+    eraseall();
   if (!strcmp(argv[1], "reset"))
     resetRun();
   if (!strcmp(argv[1], "holdreset"))
     holdReset();
+
+  if (!strcmp(argv[1], "hexdumpip"))
+    hexdump(argc-2, argv+2, true);
+  
+  if (!strcmp(argv[1], "readfsr"))
+  {
+      resetProg();
+//      holdReset();
+      char fsr;
+      cmdRdsr(&fsr);
+      printf("fsr=%02x\n", fsr);
+  }
+  if (!strcmp(argv[1], "readfpcr"))
+  {
+      resetProg();
+      char fpcr;
+      cmdRdsr(&fpcr);
+      printf("fpcr=%02x\n", fpcr);
+  }
+  if (!strcmp(argv[1], "wentest"))
+  {
+      resetProg();
+      unsigned char fsr;
+      cmdRdsr(&fsr);
+      printf("fsr=%02x\n", fsr);
+
+      const unsigned char WEN = 1 << 5;
+      fsr |= WEN;
+      cmdWrsr(fsr);
+
+      cmdRdsr(&fsr);
+      printf("fsr=%02x\n", fsr);
+  }
+
+  if (!strcmp(argv[1], "toggleprog")) {
+      while(1) {
+          spiSetResetProg(EN_RESET, DIS_PROG);
+          sleep(1);
+          spiSetResetProg(EN_RESET, EN_PROG);
+          sleep(1);
+      }
+  }
   
   
   
@@ -91,7 +141,9 @@ void holdReset()
 void resetProg()
 {
     //Reset the chip in programation mode
-  spiSetResetProg(EN_RESET, DIS_PROG);
+    spiSetResetProg(DIS_RESET, EN_PROG);
+  usleep(5000); //Wait at least 5ms
+  spiSetResetProg(EN_RESET, EN_PROG);
   usleep(5000); //Wait at least 5ms
   //spiSetResetProg(DIS_RESET, DIS_PROG);
   spiSetResetProg(DIS_RESET, EN_PROG);
@@ -146,7 +198,7 @@ void help(char *prog)
          "      Hold the reset (ie. stop) the nRF24LU1+\n", prog);
 }
 
-void hexdump(int argc, char ** argv) {
+void hexdump(int argc, char ** argv, bool info_page) {
   int address = 0;
   int len = 32*1024;
   int i,j;
@@ -159,6 +211,16 @@ void hexdump(int argc, char ** argv) {
   
   if(address>0x7FFF) address=0x7FFF;
   if((address+len)>0x7fff) len=0x7FFF-address+1;
+
+  if (info_page) {
+    printf("Reading from InfoPage\n");
+    unsigned char fsr;
+    cmdRdsr(&fsr);
+
+    const unsigned char INFEN = 1 << 3;
+    fsr |= INFEN;
+    cmdWrsr(fsr);
+  }
   
   printf("hexdump, display %d bytes from 0x%04X\n", len, address);
   cmdRead(address, buffer, len);
@@ -289,3 +351,9 @@ void nrfwrite(int argc, char **argv) {
   return;
 }
 
+void eraseall()
+{
+  resetProg();
+  cmdEraseAll();
+  resetRun();
+}

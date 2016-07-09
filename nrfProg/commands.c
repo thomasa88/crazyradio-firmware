@@ -26,6 +26,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "nrfSpi.h"
 
@@ -37,7 +38,10 @@
 #define READ 0x03
 #define PROGRAM 0x02
 #define E_PAGE 0x52
+#define E_ALL 0x62
+#define RDFPCR 0x89
 
+#define WEN (1 << 5)
 
 static char buffer[3];
 
@@ -93,6 +97,22 @@ int cmdWrsr(char fsr) {
   spiSetCS(EN_CS);
   ret = spiSend(buffer, i);
   spiSetCS(DIS_CS);
+  
+  return ret;
+}
+
+int cmdRdfpcr(char *fpcr) {
+  int i=0;
+  int ret;
+
+  buffer[i++] = RDFPCR;
+  
+  spiSetCS(EN_CS);
+  spiSend(buffer, i);
+  ret = spiReceive(buffer, 1);
+  spiSetCS(DIS_CS);
+  
+  *fpcr = buffer[0];
   
   return ret;
 }
@@ -172,8 +192,11 @@ int cmdProgram(int addr, char *data, int len) {
     cmdErasePage(i);
     cmdRdsr(&fsr);
     //Wait for the page to be erased (FSR -> 0 ...)
-    while(fsr)
+    while(fsr & WEN)
+    {
+      usleep(1);
       cmdRdsr(&fsr);
+    }
   }
   printf(" Done!\n");
   
@@ -202,10 +225,84 @@ int cmdProgram(int addr, char *data, int len) {
       spiSetCS(DIS_CS);
     
       cmdRdsr(&fsr);
-      while(fsr) cmdRdsr(&fsr);
+      while(fsr & WEN)
+      {
+        usleep(1);
+        cmdRdsr(&fsr);
+      }
     }
   }
   printf("Done!\n");
   
   return 0;
 }
+
+
+int cmdEraseAll() {
+  int i=0;
+  int ret=0;
+
+  printf("Reading InfoPage...\n");
+
+  // Must conserve nrf24le1 tuning in InfoPage!
+  unsigned char fsr;
+  if (cmdRdsr(&fsr) < 0) {
+    fprintf(stderr, "Failed to read FSR\n");
+    return -1;
+  }
+
+  const unsigned char INFEN = 1 << 3;
+  fsr |= INFEN;
+  if (cmdWrsr(fsr) < 0) {
+    fprintf(stderr, "Failed to write FSR\n");
+    return -1;
+  }
+
+  cmdRdsr(&fsr);
+  printf("fsr=%02x\n", fsr);
+  
+  int len = 512;
+  char infopage_data[512] = { 0 };
+
+  if (cmdRead(0, infopage_data, len) != len) {
+    fprintf(stderr, "Failed to read InfoPage\n");
+    return -1;
+  }
+
+  printf("Erasing all...\n");
+  // Will only clear Main Block (MB) if INFEN=0 (default after reset)
+  cmdWren();
+
+  i = 0;
+  buffer[i++] = E_ALL;
+  
+  spiSetCS(EN_CS);
+  ret = spiSend(buffer, i);
+  spiSetCS(DIS_CS);
+
+  if (ret < 0) {
+    fprintf(stderr, "Erase All command falied\n");
+  } else {
+    unsigned char fsr;
+    cmdRdsr(&fsr);
+    //Wait for the erase to complete
+    while(fsr & WEN)
+    {
+      usleep(1);
+      cmdRdsr(&fsr);
+    }
+    printf("Done\n");
+  
+
+    printf("Resetting flash readback protection in InfoPage\n");
+    infopage_data[0x23] = 0xff;
+    printf("Writing back InfoPage...\n");
+    if (cmdProgram(0, infopage_data, len) < 0) {
+      fprintf(stderr, "Failed to write back InfoPage!\n");
+      return -1;
+    }
+  }
+  
+  return ret;
+}
+

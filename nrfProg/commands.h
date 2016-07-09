@@ -34,6 +34,7 @@ int cmdWrsr(char fsr);
 int cmdRead(int addr, char *data, int len);
 int cmdProgram(int addr, char *data, int len);
 int cmdErasePage(int pageNo);
+int cmdEraseAll();
 
 
 #endif /* __COMMANDS_H__ */
