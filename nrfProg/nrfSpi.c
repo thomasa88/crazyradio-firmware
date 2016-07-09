@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <ftdi.h>
+#include <libftdi1/ftdi.h>
 #include "nrfSpi.h"
 
 //Global variable used here
