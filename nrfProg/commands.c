@@ -124,6 +124,20 @@ int cmdRead(int addr, char *data, int len)
   return i;
 }
 
+int cmdErasePage(int pageNo) {
+  int i=0;
+  int ret;
+
+  buffer[i++] = E_PAGE;
+  buffer[i++] = pageNo;
+  
+  spiSetCS(EN_CS);
+  ret = spiSend(buffer, i);
+  spiSetCS(DIS_CS);
+  
+  return ret;
+}
+
 // Fix the start address and length on 512bytes boundary
 // Erase complete pages and fill the gaps with 0xFF
 int cmdProgram(int addr, char *data, int len) {
@@ -194,18 +208,4 @@ int cmdProgram(int addr, char *data, int len) {
   printf("Done!\n");
   
   return 0;
-}
-
-int cmdErasePage(int pageNo) {
-  int i=0;
-  int ret;
-
-  buffer[i++] = E_PAGE;
-  buffer[i++] = pageNo;
-  
-  spiSetCS(EN_CS);
-  ret = spiSend(buffer, i);
-  spiSetCS(DIS_CS);
-  
-  return ret;
 }
