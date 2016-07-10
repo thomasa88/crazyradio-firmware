@@ -34,8 +34,8 @@
 #include "nrfSpi.h"
 #include "commands.h"
 
-static char buffer[32*1024];
-static char vbuffer[32*1024];
+static char buffer[FLASH_SIZE];
+static char vbuffer[FLASH_SIZE];
 
 void help(char * port);
 
@@ -200,7 +200,7 @@ void help(char *prog)
 
 void hexdump(int argc, char ** argv, bool info_page) {
   int address = 0;
-  int len = 32*1024;
+  int len = FLASH_SIZE;
   int i,j;
   char line[16];
   
@@ -209,8 +209,8 @@ void hexdump(int argc, char ** argv, bool info_page) {
   if(argc>0) sscanf(argv[0], "%d", &address);
   if(argc>1) sscanf(argv[1], "%d", &len);
   
-  if(address>0x7FFF) address=0x7FFF;
-  if((address+len)>0x7fff) len=0x7FFF-address+1;
+  if(address>FLASH_SIZE) address=FLASH_SIZE;
+  if((address+len)>FLASH_SIZE) len=FLASH_SIZE-address+1;
 
   if (info_page) {
     printf("Reading from InfoPage\n");
@@ -247,7 +247,7 @@ void hexdump(int argc, char ** argv, bool info_page) {
 
 void nrfread(int argc, char ** argv) {
   int address = 0;
-  int len = 32*1024;
+  int len = FLASH_SIZE;
   FILE *ofile;
   
   if (argc==0) {
@@ -265,8 +265,8 @@ void nrfread(int argc, char ** argv) {
   if(argc>1) sscanf(argv[1], "%d", &address);
   if(argc>2) sscanf(argv[2], "%d", &len);
   
-  if(address>0x7FFF) address=0x7FFF;
-  if((address+len)>0x7fff) len=0x7FFF-address+1;
+  if(address>FLASH_SIZE) address=FLASH_SIZE;
+  if((address+len)>FLASH_SIZE) len=FLASH_SIZE-address+1;
   
   printf("read, read %d bytes from 0x%04X. Write into %s.\n", 
          len, address, argv[0]);
@@ -285,7 +285,7 @@ void nrfread(int argc, char ** argv) {
 
 void nrfwrite(int argc, char **argv) {
   int address = 0;
-  int len = 32*1024;
+  int len = FLASH_SIZE;
   FILE *ifile;
   int i;
   int identical;
@@ -310,7 +310,7 @@ void nrfwrite(int argc, char **argv) {
   rewind(ifile);
   
   //Limit the size
-  if((address+len)>0x7fff) len=0x7FFF-address+1;
+  if((address+len)>FLASH_SIZE) len=FLASH_SIZE-address+1;
   
   //Read the file into the buffer
   fread(buffer, 1, len, ifile);
@@ -320,8 +320,8 @@ void nrfwrite(int argc, char **argv) {
   
 
   
-  if(address>0x7FFF) address=0x7FFF;
-  if((address+len)>0x7fff) len=0x7FFF-address+1;
+  if(address>FLASH_SIZE) address=FLASH_SIZE;
+  if((address+len)>FLASH_SIZE) len=FLASH_SIZE-address+1;
   
   
   

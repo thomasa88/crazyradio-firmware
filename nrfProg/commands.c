@@ -168,14 +168,14 @@ int cmdProgram(int addr, char *data, int len) {
   int olen  = len;
   int ptr=0;
 
-  if (addr>30*1024) {
-    printf("ERROR: Writing above 30K is disabled!\n");
+  if (addr>MAX_FLASH_WRITE_SIZE) {
+    printf("ERROR: Writing above %dK is disabled!\n", MAX_FLASH_WRITE_SIZE/1024);
     return -1;
   }
 
-  if((addr+len)>30*1024) {
-    len = (30*1024)-addr;
-    printf("WARNING Write above 30K disabled! The new write length is %d\n", len);
+  if((addr+len)>MAX_FLASH_WRITE_SIZE) {
+    len = (MAX_FLASH_WRITE_SIZE)-addr;
+    printf("WARNING Write above %dK disabled! The new write length is %d\n", MAX_FLASH_WRITE_SIZE/1024, len);
   }
 
   //Fix address and length on the good boundary
